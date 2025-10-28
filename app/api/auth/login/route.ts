@@ -13,6 +13,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Test environment variables
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('Missing Supabase environment variables')
+      return NextResponse.json(
+        { 
+          error: 'Server configuration error',
+          details: 'Missing Supabase environment variables'
+        },
+        { status: 500 }
+      )
+    }
+
     const supabase = createClient()
 
     // Check if admin exists in our custom admins table
@@ -22,8 +34,20 @@ export async function POST(request: NextRequest) {
       .eq('username', username)
       .single()
 
-    if (adminError || !admin) {
-      console.error('Admin not found:', adminError)
+    if (adminError) {
+      console.error('Database error:', adminError)
+      return NextResponse.json(
+        { 
+          error: 'Database connection error',
+          details: adminError.message,
+          code: adminError.code
+        },
+        { status: 500 }
+      )
+    }
+
+    if (!admin) {
+      console.error('Admin not found:', username)
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
@@ -54,7 +78,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Login error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
+      },
       { status: 500 }
     )
   }
