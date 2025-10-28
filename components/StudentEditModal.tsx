@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { Student, Grade, Class, PaymentRecord, StudentWithPayments } from '@/lib/types'
 import { GradeBadge } from './GradeBadge'
 import { formatDate, getMonthName } from '@/lib/utils'
-import { X, Calendar, Save } from 'lucide-react'
+import { X, Calendar, Save, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const studentSchema = z.object({
@@ -28,6 +28,7 @@ interface StudentEditModalProps {
   onClose: () => void
   onSave: (data: any) => Promise<void>
   onUpdatePayment: (studentId: string, year: number, month?: number, paymentDate?: string, renewalDate?: string) => Promise<void>
+  onDeletePayment: (paymentId: string) => Promise<void>
 }
 
 export function StudentEditModal({ 
@@ -37,7 +38,8 @@ export function StudentEditModal({
   isOpen, 
   onClose, 
   onSave, 
-  onUpdatePayment 
+  onUpdatePayment,
+  onDeletePayment
 }: StudentEditModalProps) {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [isLoading, setIsLoading] = useState(false)
@@ -101,6 +103,19 @@ export function StudentEditModal({
     }
   }
 
+  const handleDeletePayment = async (paymentId: string, monthName: string) => {
+    if (!confirm(`Are you sure you want to permanently delete the payment for ${monthName}? This action cannot be undone.`)) {
+      return
+    }
+    
+    try {
+      await onDeletePayment(paymentId)
+      toast.success('Payment deleted successfully')
+    } catch (error) {
+      toast.error('Failed to delete payment')
+    }
+  }
+
   const getPaymentForMonth = (month: number): PaymentRecord | undefined => {
     const studentWithPayments = student as StudentWithPayments
     return studentWithPayments?.payment_records?.find(p => p.year === selectedYear && p.month === month)
@@ -109,6 +124,11 @@ export function StudentEditModal({
   const markPaidToday = (month: number) => {
     const today = new Date().toISOString().split('T')[0]
     handlePaymentUpdate(month, today)
+  }
+
+  const getRenewalPayment = () => {
+    const studentWithPayments = student as StudentWithPayments
+    return studentWithPayments?.payment_records?.find(p => p.year === selectedYear && p.month === 0)
   }
 
   if (!student) return null
@@ -288,22 +308,33 @@ export function StudentEditModal({
                                 {payment?.payment_date ? (
                                   <div className="text-green-600 text-sm">
                                     ✅ Paid
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-gray-500 mb-2">
                                       {formatDate(payment.payment_date)}
                                     </div>
+                                    <motion.button
+                                      whileHover={{ scale: 1.05 }}
+                                      whileTap={{ scale: 0.95 }}
+                                      onClick={() => handleDeletePayment(payment.id, getMonthName(month))}
+                                      className="px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 rounded transition-colors flex items-center space-x-1 mx-auto"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                      <span>Delete</span>
+                                    </motion.button>
                                   </div>
                                 ) : (
                                   <div className="text-red-600 text-sm">❌ Unpaid</div>
                                 )}
                               </div>
-                              <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => markPaidToday(month)}
-                                className="mt-2 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                              >
-                                Mark Paid Today
-                              </motion.button>
+                              {!payment?.payment_date && (
+                                <motion.button
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => markPaidToday(month)}
+                                  className="mt-2 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                >
+                                  Mark Paid Today
+                                </motion.button>
+                              )}
                             </div>
                           </motion.div>
                         )
@@ -320,13 +351,14 @@ export function StudentEditModal({
                       <Calendar className="h-5 w-5 text-gray-400" />
                       <input
                         type="date"
-                        defaultValue={(student as StudentWithPayments)?.payment_records?.find(p => p.year === selectedYear && p.renewal_payment)?.renewal_payment || ''}
+                        value={getRenewalPayment()?.payment_date || ''}
                         onChange={(e) => {
                           const studentWithPayments = student as StudentWithPayments
-                          if (studentWithPayments.payment_records?.[0]) {
+                          const renewalPayment = getRenewalPayment()
+                          if (renewalPayment) {
                             handlePaymentUpdate(
-                              studentWithPayments.payment_records[0].month,
-                              studentWithPayments.payment_records[0].payment_date,
+                              renewalPayment.month,
+                              renewalPayment.payment_date,
                               e.target.value
                             )
                           } else {
@@ -336,6 +368,17 @@ export function StudentEditModal({
                         }}
                         className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
+                      {getRenewalPayment()?.payment_date && (
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleDeletePayment(getRenewalPayment()!.id, 'Renewal')}
+                          className="px-3 py-2 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 rounded transition-colors flex items-center space-x-1"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          <span>Delete</span>
+                        </motion.button>
+                      )}
                     </div>
                   </div>
                 </form>

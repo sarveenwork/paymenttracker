@@ -47,7 +47,7 @@ export function PaymentStatus({ student }: PaymentStatusProps) {
   }
 
   const getRenewalPayment = (year: number): PaymentRecord | undefined => {
-    return paymentsByYear[year]?.find(p => p.renewal_payment)
+    return paymentsByYear[year]?.find(p => p.month === 0)
   }
 
   return (
@@ -95,7 +95,8 @@ export function PaymentStatus({ student }: PaymentStatusProps) {
             {years.map((year) => {
               const isExpanded = expandedYears.has(year)
               const yearPayments = paymentsByYear[year] || []
-              const paidCount = yearPayments.filter(p => p.payment_date).length
+              // Count only months 1-12, excluding month 0 (renewal)
+              const paidCount = yearPayments.filter(p => p.month >= 1 && p.month <= 12 && p.payment_date).length
               const totalCount = 12
               const renewalPayment = getRenewalPayment(year)
               
@@ -116,7 +117,7 @@ export function PaymentStatus({ student }: PaymentStatusProps) {
                       <span className="text-sm text-gray-500">
                         {paidCount}/{totalCount} months paid
                       </span>
-                      {renewalPayment?.renewal_payment && (
+                      {renewalPayment?.payment_date && (
                         <span className="text-sm text-purple-600 font-medium">
                           🔄 Renewal Paid
                         </span>
@@ -146,12 +147,12 @@ export function PaymentStatus({ student }: PaymentStatusProps) {
                     >
                       <div className="p-4 bg-gray-50">
                         {/* Renewal Payment Section */}
-                        {renewalPayment?.renewal_payment && (
+                        {renewalPayment?.payment_date && (
                           <div className="mb-4 p-3 bg-purple-100 border border-purple-200 rounded-lg">
                             <div className="flex items-center space-x-2">
                               <span className="text-sm font-medium text-purple-900">🔄 Renewal Payment:</span>
                               <span className="text-sm text-purple-700">
-                                Paid on {formatDate(renewalPayment.renewal_payment)}
+                                Paid on {formatDate(renewalPayment.payment_date)}
                               </span>
                             </div>
                           </div>

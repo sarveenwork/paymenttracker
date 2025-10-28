@@ -31,9 +31,8 @@ export interface PaymentRecord {
   id: string
   student_id: string
   year: number
-  month: number
+  month: number // 0 = renewal payment, 1-12 = monthly payments
   payment_date?: string
-  renewal_payment?: string
   created_at: string
   updated_at: string
 }
@@ -54,6 +53,5 @@ export interface MonthlyPayment {
   month: number
   monthName: string
   payment_date?: string
-  renewal_payment?: string
   isPaid: boolean
 }

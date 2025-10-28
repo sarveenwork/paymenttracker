@@ -31,8 +31,7 @@ export async function GET(request: NextRequest) {
           id,
           year,
           month,
-          payment_date,
-          renewal_payment
+          payment_date
         )
       `)
       .or(`name.ilike.%${search}%,tm_number.ilike.%${search}%,ic_number.ilike.%${search}%`)

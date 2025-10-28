@@ -32,8 +32,7 @@ export async function GET(request: NextRequest) {
           id,
           year,
           month,
-          payment_date,
-          renewal_payment
+          payment_date
         )
       `)
       .eq('ic_number', ic_number)

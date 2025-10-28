@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
+import * as XLSX from 'xlsx'
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,6 +8,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const year = searchParams.get('year') || new Date().getFullYear().toString()
 
+    // Fetch students with payment records
     const { data: students, error } = await supabase
       .from('students')
       .select(`
@@ -20,16 +22,24 @@ export async function GET(request: NextRequest) {
           id,
           class_name
         ),
-        payment_records!inner (
+        payment_records (
           id,
           year,
           month,
-          payment_date,
-          renewal_payment
+          payment_date
         )
       `)
-      .eq('payment_records.year', parseInt(year))
+      .eq('is_active', true)
       .order('name')
+
+    // Filter payment records by year
+    if (students) {
+      students.forEach((student: any) => {
+        if (student.payment_records) {
+          student.payment_records = student.payment_records.filter((payment: any) => payment.year === parseInt(year))
+        }
+      })
+    }
 
     if (error) {
       console.error('Error fetching students for export:', error)
@@ -39,101 +49,105 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Convert to CSV format
-    const csvHeaders = [
-      'Student ID',
-      'TM Number',
-      'IC Number',
-      'Name',
-      'Current Grade',
-      'Class',
-      'January',
-      'January Date',
-      'February',
-      'February Date',
-      'March',
-      'March Date',
-      'April',
-      'April Date',
-      'May',
-      'May Date',
-      'June',
-      'June Date',
-      'July',
-      'July Date',
-      'August',
-      'August Date',
-      'September',
-      'September Date',
-      'October',
-      'October Date',
-      'November',
-      'November Date',
-      'December',
-      'December Date',
-      'Renewal Payment',
-      'Renewal Payment Date',
-      'Remarks'
-    ]
-
-    const csvRows = students.map(student => {
-      const payments = student.payment_records.reduce((acc: any, payment: any) => {
-        acc[payment.month] = {
-          status: payment.payment_date ? 'Paid' : 'Unpaid',
-          date: payment.payment_date || ''
+    // Convert to Excel format matching import template structure
+    const exportData = students.map(student => {
+      // Create payment dates object for months 0-12
+      const paymentDates: { [month: number]: string } = {}
+      
+      student.payment_records.forEach((payment: any) => {
+        if (payment.payment_date) {
+          paymentDates[payment.month] = payment.payment_date
         }
-        return acc
-      }, {})
+      })
 
-      // Find renewal payment for the current year
-      const renewalPayment = student.payment_records.find((p: any) => p.renewal_payment)
+      // Build row data matching import template structure
+      const rowData: any = {
+        'Student Name': student.name,
+        'TM Number': student.tm_number,
+        'IC Number': student.ic_number,
+        'Grade': student.grades?.grade_name?.replace(' Grade', '') || 'N/A',
+        'Class': student.classes?.class_name || 'N/A',
+        'Month 0 (Renewal)': paymentDates[0] || '',
+        'Month 1': paymentDates[1] || '',
+        'Month 2': paymentDates[2] || '',
+        'Month 3': paymentDates[3] || '',
+        'Month 4': paymentDates[4] || '',
+        'Month 5': paymentDates[5] || '',
+        'Month 6': paymentDates[6] || '',
+        'Month 7': paymentDates[7] || '',
+        'Month 8': paymentDates[8] || '',
+        'Month 9': paymentDates[9] || '',
+        'Month 10': paymentDates[10] || '',
+        'Month 11': paymentDates[11] || '',
+        'Month 12': paymentDates[12] || '',
+        'Remarks': student.remarks || ''
+      }
 
-      return [
-        student.student_id,
-        student.tm_number,
-        student.ic_number,
-        student.name,
-        student.grades?.grade_name || 'N/A',
-        student.classes?.class_name || 'N/A',
-        payments[1]?.status || 'Unpaid',
-        payments[1]?.date || '',
-        payments[2]?.status || 'Unpaid',
-        payments[2]?.date || '',
-        payments[3]?.status || 'Unpaid',
-        payments[3]?.date || '',
-        payments[4]?.status || 'Unpaid',
-        payments[4]?.date || '',
-        payments[5]?.status || 'Unpaid',
-        payments[5]?.date || '',
-        payments[6]?.status || 'Unpaid',
-        payments[6]?.date || '',
-        payments[7]?.status || 'Unpaid',
-        payments[7]?.date || '',
-        payments[8]?.status || 'Unpaid',
-        payments[8]?.date || '',
-        payments[9]?.status || 'Unpaid',
-        payments[9]?.date || '',
-        payments[10]?.status || 'Unpaid',
-        payments[10]?.date || '',
-        payments[11]?.status || 'Unpaid',
-        payments[11]?.date || '',
-        payments[12]?.status || 'Unpaid',
-        payments[12]?.date || '',
-        renewalPayment ? 'Yes' : 'No',
-        renewalPayment?.renewal_payment || '',
-        student.remarks || ''
-      ]
+      return rowData
     })
 
-    const csvContent = [
-      csvHeaders.join(','),
-      ...csvRows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n')
+    // Create workbook
+    const workbook = XLSX.utils.book_new()
 
-    return new NextResponse(csvContent, {
+    // Add main data sheet
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
+    
+    // Set column widths matching import template
+    const columnWidths = [
+      { wch: 20 }, // Student Name
+      { wch: 15 }, // TM Number
+      { wch: 15 }, // IC Number
+      { wch: 15 }, // Grade
+      { wch: 15 }, // Class
+      { wch: 18 }, // Month 0 (Renewal)
+      { wch: 12 }, // Month 1
+      { wch: 12 }, // Month 2
+      { wch: 12 }, // Month 3
+      { wch: 12 }, // Month 4
+      { wch: 12 }, // Month 5
+      { wch: 12 }, // Month 6
+      { wch: 12 }, // Month 7
+      { wch: 12 }, // Month 8
+      { wch: 12 }, // Month 9
+      { wch: 12 }, // Month 10
+      { wch: 12 }, // Month 11
+      { wch: 12 }, // Month 12
+      { wch: 30 }  // Remarks
+    ]
+    worksheet['!cols'] = columnWidths
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Students')
+
+    // Add grades reference sheet
+    const gradesResult = await supabase.from('grades').select('*').order('id', { ascending: true })
+    if (gradesResult.data) {
+      const gradesSheet = XLSX.utils.json_to_sheet(
+        gradesResult.data.map(g => ({ 'Grade Name': g.grade_name.replace(' Grade', '') }))
+      )
+      gradesSheet['!cols'] = [{ wch: 20 }]
+      XLSX.utils.book_append_sheet(workbook, gradesSheet, 'Grades')
+    }
+
+    // Add classes reference sheet
+    const classesResult = await supabase.from('classes').select('*').order('id', { ascending: true })
+    if (classesResult.data) {
+      const classesSheet = XLSX.utils.json_to_sheet(
+        classesResult.data.map(c => ({ 'Class Name': c.class_name }))
+      )
+      classesSheet['!cols'] = [{ wch: 20 }]
+      XLSX.utils.book_append_sheet(workbook, classesSheet, 'Classes')
+    }
+
+    // Generate Excel file buffer
+    const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
+
+    // Return the Excel file
+    return new NextResponse(excelBuffer, {
+      status: 200,
       headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="students-${year}.csv"`
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="students-export-${year}.xlsx"`,
+        'Content-Length': excelBuffer.length.toString()
       }
     })
 

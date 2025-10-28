@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Student, PaymentRecord, StudentWithPayments } from '@/lib/types'
-import { X, Check, XCircle } from 'lucide-react'
+import { X, Check, XCircle, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDate, getMonthName } from '@/lib/utils'
 
@@ -12,13 +12,15 @@ interface SimplePaymentModalProps {
   isOpen: boolean
   onClose: () => void
   onUpdatePayment: (studentId: string, year: number, month?: number, paymentDate?: string, renewalDate?: string) => Promise<void>
+  onDeletePayment: (paymentId: string) => Promise<void>
 }
 
 export function SimplePaymentModal({
   student,
   isOpen,
   onClose,
-  onUpdatePayment
+  onUpdatePayment,
+  onDeletePayment
 }: SimplePaymentModalProps) {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [isLoading, setIsLoading] = useState(false)
@@ -46,9 +48,9 @@ export function SimplePaymentModal({
   }
 
   const getRenewalPayment = () => {
-    // Find renewal payment for the current year
+    // Find renewal payment for the current year (month 0)
     const studentWithPayments = student as StudentWithPayments
-    return studentWithPayments?.payment_records?.find(p => p.year === selectedYear && p.renewal_payment)
+    return studentWithPayments?.payment_records?.find(p => p.year === selectedYear && p.month === 0)
   }
 
   const updateRenewalPayment = async (renewalDate: string) => {
@@ -61,6 +63,22 @@ export function SimplePaymentModal({
       toast.success('Renewal payment updated')
     } catch (error) {
       toast.error('Failed to update renewal payment')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeletePayment = async (paymentId: string, monthName: string) => {
+    if (!confirm(`Are you sure you want to permanently delete the payment for ${monthName}? This action cannot be undone.`)) {
+      return
+    }
+    
+    setIsLoading(true)
+    try {
+      await onDeletePayment(paymentId)
+      toast.success('Payment deleted successfully')
+    } catch (error) {
+      toast.error('Failed to delete payment')
     } finally {
       setIsLoading(false)
     }
@@ -134,14 +152,26 @@ export function SimplePaymentModal({
                 </label>
                 <input
                   type="date"
-                  defaultValue={renewalPayment?.renewal_payment || ''}
+                  value={renewalPayment?.payment_date || ''}
                   onChange={(e) => updateRenewalPayment(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              {renewalPayment?.renewal_payment && (
-                <div className="text-green-600 text-sm">
-                  ✅ Renewal Paid: {formatDate(renewalPayment.renewal_payment)}
+              {renewalPayment?.payment_date && (
+                <div className="flex flex-col items-end space-y-2">
+                  <div className="text-green-600 text-sm">
+                    ✅ Renewal Paid: {formatDate(renewalPayment.payment_date)}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeletePayment(renewalPayment.id, 'Renewal')
+                    }}
+                    className="px-3 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 rounded transition-colors flex items-center space-x-1"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    <span>Delete</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -182,9 +212,19 @@ export function SimplePaymentModal({
                         {isPaid ? (
                           <div className="text-green-600">
                             <div className="font-medium">Paid</div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 mb-2">
                               {formatDate(payment.payment_date!)}
                             </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeletePayment(payment.id, getMonthName(month))
+                              }}
+                              className="mt-1 px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 rounded transition-colors flex items-center space-x-1"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              <span>Delete</span>
+                            </button>
                           </div>
                         ) : (
                           <div className="text-red-600 font-medium">Unpaid</div>

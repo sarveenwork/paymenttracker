@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Student, PaymentRecord, StudentWithPayments } from '@/lib/types'
-import { X, Save, CreditCard, Calendar } from 'lucide-react'
+import { X, Save, CreditCard, Calendar, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDate, getMonthName } from '@/lib/utils'
 
@@ -12,13 +12,15 @@ interface PaymentModalProps {
   isOpen: boolean
   onClose: () => void
   onUpdatePayment: (studentId: string, paymentData: any) => Promise<void>
+  onDeletePayment: (paymentId: string) => Promise<void>
 }
 
 export function PaymentModal({
   student,
   isOpen,
   onClose,
-  onUpdatePayment
+  onUpdatePayment,
+  onDeletePayment
 }: PaymentModalProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString())
@@ -35,9 +37,9 @@ export function PaymentModal({
       ) || []
       setPayments(yearPayments)
       
-      // Load renewal payment date for the year
-      const renewalPayment = yearPayments.find(p => p.renewal_payment)
-      setRenewalPaymentDate(renewalPayment?.renewal_payment || '')
+      // Load renewal payment date for the year (month 0)
+      const renewalPayment = yearPayments.find(p => p.month === 0)
+      setRenewalPaymentDate(renewalPayment?.payment_date || '')
       
       // Initialize monthly payment dates
       const monthlyDates: { [month: number]: string } = {}
@@ -58,7 +60,8 @@ export function PaymentModal({
     try {
       await onUpdatePayment(student.id, {
         year: parseInt(selectedYear),
-        renewal_payment: renewalPaymentDate
+        month: 0, // Month 0 represents renewal payment
+        payment_date: renewalPaymentDate
       })
       toast.success('Renewal payment updated successfully!')
     } catch (error) {
@@ -80,12 +83,6 @@ export function PaymentModal({
         payment_date: paymentDate
       })
       
-      // Update local state
-      setMonthlyPaymentDates(prev => ({
-        ...prev,
-        [month]: paymentDate
-      }))
-      
       toast.success(`${getMonthName(month)} payment updated successfully!`)
     } catch (error) {
       console.error('Error updating monthly payment:', error)
@@ -97,6 +94,19 @@ export function PaymentModal({
 
   const getExistingPayment = (month: number) => {
     return payments.find(p => p.month === month)
+  }
+
+  const handleDeletePayment = async (paymentId: string, monthName: string) => {
+    if (!confirm(`Are you sure you want to permanently delete the payment for ${monthName}? This action cannot be undone.`)) {
+      return
+    }
+    
+    try {
+      await onDeletePayment(paymentId)
+      toast.success('Payment deleted successfully')
+    } catch (error) {
+      toast.error('Failed to delete payment')
+    }
   }
 
   if (!isOpen || !student) return null
@@ -203,6 +213,21 @@ export function PaymentModal({
                     </>
                   )}
                 </button>
+                
+                {renewalPaymentDate && (
+                  <button
+                    onClick={() => {
+                      const renewalPayment = payments.find(p => p.month === 0)
+                      if (renewalPayment) {
+                        handleDeletePayment(renewalPayment.id, 'Renewal')
+                      }
+                    }}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center space-x-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Delete Renewal Payment</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -254,6 +279,16 @@ export function PaymentModal({
                       >
                         {isLoading ? 'Saving...' : 'Update'}
                       </button>
+                      
+                      {existingPayment?.payment_date && (
+                        <button
+                          onClick={() => handleDeletePayment(existingPayment.id, getMonthName(month))}
+                          className="w-full px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 flex items-center justify-center space-x-1"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          <span>Delete</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -267,12 +302,12 @@ export function PaymentModal({
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-gray-600">Total Months:</span>
-                <span className="ml-2 font-medium">{payments.length}/12</span>
+                <span className="ml-2 font-medium">12</span>
               </div>
               <div>
                 <span className="text-gray-600">Paid Months:</span>
                 <span className="ml-2 font-medium text-green-600">
-                  {payments.filter(p => p.payment_date).length}
+                  {payments.filter(p => p.month >= 1 && p.month <= 12 && p.payment_date).length}
                 </span>
               </div>
               <div>

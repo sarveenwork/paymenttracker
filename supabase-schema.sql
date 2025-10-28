@@ -36,9 +36,8 @@ CREATE TABLE IF NOT EXISTS payment_records (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   student_id UUID REFERENCES students(id) ON DELETE CASCADE,
   year INTEGER NOT NULL,
-  month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
+  month INTEGER NOT NULL CHECK (month >= 0 AND month <= 12), -- 0 = renewal payment, 1-12 = monthly payments
   payment_date DATE,
-  renewal_payment DATE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(student_id, year, month)

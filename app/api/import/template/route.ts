@@ -26,18 +26,44 @@ export async function GET(request: NextRequest) {
     const sampleData = [
       {
         'Student Name': 'John Doe',
-        'TM Number': 'TM123456',
+        'TM Number': '123456',
         'IC Number': '123456789012',
-        'Grade': 'White Grade',
+        'Grade': 'White',
         'Class': 'Main Class',
+        'Month 0 (Renewal)': '2024-01-20',
+        'Month 1': '2024-01-15',
+        'Month 2': '',
+        'Month 3': '',
+        'Month 4': '',
+        'Month 5': '',
+        'Month 6': '',
+        'Month 7': '',
+        'Month 8': '',
+        'Month 9': '',
+        'Month 10': '',
+        'Month 11': '',
+        'Month 12': '',
         'Remarks': 'Sample student'
       },
       {
         'Student Name': 'Jane Smith',
-        'TM Number': 'TM789012',
+        'TM Number': '789012',
         'IC Number': '987654321098',
-        'Grade': 'Yellow Grade',
+        'Grade': 'Yellow',
         'Class': 'Mak Mandin',
+        'Month 0 (Renewal)': '',
+        'Month 1': '',
+        'Month 2': '2024-02-20',
+        'Month 3': '',
+        'Month 4': '',
+        'Month 5': '',
+        'Month 6': '',
+        'Month 7': '',
+        'Month 8': '',
+        'Month 9': '',
+        'Month 10': '',
+        'Month 11': '',
+        'Month 12': '',
         'Remarks': 'Another sample student'
       }
     ]
@@ -53,8 +79,21 @@ export async function GET(request: NextRequest) {
       { wch: 20 }, // Student Name
       { wch: 15 }, // TM Number
       { wch: 15 }, // IC Number
-      { wch: 20 }, // Grade
+      { wch: 15 }, // Grade
       { wch: 15 }, // Class
+      { wch: 18 }, // Month 0 (Renewal)
+      { wch: 12 }, // Month 1
+      { wch: 12 }, // Month 2
+      { wch: 12 }, // Month 3
+      { wch: 12 }, // Month 4
+      { wch: 12 }, // Month 5
+      { wch: 12 }, // Month 6
+      { wch: 12 }, // Month 7
+      { wch: 12 }, // Month 8
+      { wch: 12 }, // Month 9
+      { wch: 12 }, // Month 10
+      { wch: 12 }, // Month 11
+      { wch: 12 }, // Month 12
       { wch: 30 }  // Remarks
     ]
     worksheet['!cols'] = columnWidths
@@ -80,15 +119,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Apply validations to the data range (excluding header row)
-    const dataRange = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:F3')
+    const dataRange = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:S3')
     for (let row = dataRange.s.r + 1; row <= dataRange.e.r; row++) {
-      // Grade validation (column D)
-      const gradeCell = XLSX.utils.encode_cell({ r: row, c: 3 })
+      // Grade validation (column E)
+      const gradeCell = XLSX.utils.encode_cell({ r: row, c: 4 })
       if (!worksheet[gradeCell]) worksheet[gradeCell] = { t: 's', v: '' }
       worksheet[gradeCell].dataValidation = gradeValidation
       
-      // Class validation (column E)
-      const classCell = XLSX.utils.encode_cell({ r: row, c: 4 })
+      // Class validation (column F)
+      const classCell = XLSX.utils.encode_cell({ r: row, c: 5 })
       if (!worksheet[classCell]) worksheet[classCell] = { t: 's', v: '' }
       worksheet[classCell].dataValidation = classValidation
     }
@@ -97,7 +136,7 @@ export async function GET(request: NextRequest) {
 
     // Add grades reference sheet
     const gradesSheet = XLSX.utils.json_to_sheet(
-      grades.map(g => ({ 'Grade Name': g.grade_name }))
+      grades.map(g => ({ 'Grade Name': g.grade_name.replace(' Grade', '') }))
     )
     gradesSheet['!cols'] = [{ wch: 20 }]
     XLSX.utils.book_append_sheet(workbook, gradesSheet, 'Grades')

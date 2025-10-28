@@ -8,7 +8,6 @@ import { Student, Grade, Class } from '@/lib/types'
 import { StudentTable } from '@/components/StudentTable'
 import { StudentEditModal } from '@/components/StudentEditModal'
 import { AddStudentModal } from '@/components/AddStudentModal'
-import { PaymentStatus } from '@/components/PaymentStatus'
 import { SimplePaymentModal } from '@/components/SimplePaymentModal'
 import { ImportModal } from '@/components/ImportModal'
 import { ClassesModal } from '@/components/ClassesModal'
@@ -37,7 +36,6 @@ export default function AdminDashboard() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isSimplePaymentModalOpen, setIsSimplePaymentModalOpen] = useState(false)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [isClassesModalOpen, setIsClassesModalOpen] = useState(false)
@@ -202,6 +200,10 @@ export default function AdminDashboard() {
 
   const handleUpdatePayment = async (studentId: string, year: number, month?: number, paymentDate?: string, renewalDate?: string) => {
     try {
+      // If renewalDate is provided, send it as month 0
+      const paymentMonth = renewalDate ? 0 : month
+      const finalPaymentDate = renewalDate || paymentDate
+
       const response = await fetch('/api/payments', {
         method: 'POST',
         headers: {
@@ -210,14 +212,22 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           student_id: studentId,
           year,
-          month,
-          payment_date: paymentDate,
-          renewal_payment: renewalDate
+          month: paymentMonth,
+          payment_date: finalPaymentDate
         })
       })
 
       if (response.ok) {
         await fetchStudents()
+        
+        // Update selectedStudent with fresh data if modal is open
+        if (selectedStudent && selectedStudent.id === studentId) {
+          const response = await fetch(`/api/students/${studentId}`)
+          if (response.ok) {
+            const data = await response.json()
+            setSelectedStudent(data.student)
+          }
+        }
       } else {
         const error = await response.json()
         throw new Error(error.error || 'Failed to update payment')
@@ -243,12 +253,48 @@ export default function AdminDashboard() {
 
       if (response.ok) {
         await fetchStudents()
+        
+        // Update selectedStudent with fresh data if modal is open
+        if (selectedStudent && selectedStudent.id === studentId) {
+          const response = await fetch(`/api/students/${studentId}`)
+          if (response.ok) {
+            const data = await response.json()
+            setSelectedStudent(data.student)
+          }
+        }
       } else {
         const error = await response.json()
         throw new Error(error.error || 'Failed to update payment')
       }
     } catch (error) {
       console.error('Error updating payment:', error)
+      throw error
+    }
+  }
+
+  const handleDeletePayment = async (paymentId: string) => {
+    try {
+      const response = await fetch(`/api/payments?id=${paymentId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        await fetchStudents()
+        
+        // Update selectedStudent with fresh data if modal is open
+        if (selectedStudent) {
+          const response = await fetch(`/api/students/${selectedStudent.id}`)
+          if (response.ok) {
+            const data = await response.json()
+            setSelectedStudent(data.student)
+          }
+        }
+      } else {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete payment')
+      }
+    } catch (error) {
+      console.error('Error deleting payment:', error)
       throw error
     }
   }
@@ -285,12 +331,12 @@ export default function AdminDashboard() {
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `students-${selectedYear}.csv`
+        a.download = `students-export-${selectedYear}.xlsx`
         document.body.appendChild(a)
         a.click()
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
-        toast.success('Export completed successfully')
+        toast.success('Excel export completed successfully')
       } else {
         const error = await response.json()
         toast.error(error.error || 'Export failed')
@@ -464,11 +510,8 @@ export default function AdminDashboard() {
             classes={classes}
             onEdit={handleUpdateStudentFromTable}
             onDelete={handleDeleteStudent}
-            onView={(student) => {
-              setSelectedStudent(student)
-              setIsViewModalOpen(true)
-            }}
             onUpdatePayment={handleUpdatePaymentFromTable}
+            onDeletePayment={handleDeletePayment}
             onSimplePayment={(student) => {
               setSelectedStudent(student)
               setIsSimplePaymentModalOpen(true)
@@ -488,6 +531,7 @@ export default function AdminDashboard() {
       />
 
       <StudentEditModal
+        key={`edit-${selectedStudent?.id}-${(selectedStudent as any)?.payment_records?.length || 0}`}
         student={selectedStudent}
         grades={grades}
         classes={classes}
@@ -498,9 +542,11 @@ export default function AdminDashboard() {
         }}
         onSave={handleUpdateStudent}
         onUpdatePayment={handleUpdatePayment}
+        onDeletePayment={handleDeletePayment}
       />
 
       <SimplePaymentModal
+        key={`simple-${selectedStudent?.id}-${(selectedStudent as any)?.payment_records?.length || 0}`}
         student={selectedStudent}
         isOpen={isSimplePaymentModalOpen}
         onClose={() => {
@@ -508,6 +554,7 @@ export default function AdminDashboard() {
           setSelectedStudent(null)
         }}
         onUpdatePayment={handleUpdatePayment}
+        onDeletePayment={handleDeletePayment}
       />
 
       <ImportModal
@@ -522,26 +569,6 @@ export default function AdminDashboard() {
         onClassesUpdate={fetchClasses}
       />
 
-      {/* View Modal */}
-      {selectedStudent && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className={`fixed inset-0 bg-black bg-opacity-50 z-50 ${isViewModalOpen ? 'block' : 'hidden'}`}
-          onClick={() => setIsViewModalOpen(false)}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed inset-4 z-50 overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <PaymentStatus student={selectedStudent} />
-          </motion.div>
-        </motion.div>
-      )}
     </div>
   )
 }

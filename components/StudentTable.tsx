@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Student, Grade, Class } from '@/lib/types'
 import { GradeBadge } from './GradeBadge'
 import { ClassBadge } from './ClassBadge'
-import { Edit, Trash2, Eye, CreditCard } from 'lucide-react'
+import { Edit, Trash2, CreditCard, DollarSign } from 'lucide-react'
 import { StudentDetailsModal } from './StudentDetailsModal'
 import { PaymentModal } from './PaymentModal'
 
@@ -15,13 +15,13 @@ interface StudentTableProps {
   classes: Class[]
   onEdit: (studentId: string, data: any) => Promise<void>
   onDelete: (studentId: string) => void
-  onView: (student: Student) => void
   onUpdatePayment: (studentId: string, paymentData: any) => Promise<void>
+  onDeletePayment: (paymentId: string) => Promise<void>
   onSimplePayment: (student: Student) => void
   isLoading?: boolean
 }
 
-export function StudentTable({ students, grades, classes, onEdit, onDelete, onView, onUpdatePayment, onSimplePayment, isLoading }: StudentTableProps) {
+export function StudentTable({ students, grades, classes, onEdit, onDelete, onUpdatePayment, onDeletePayment, onSimplePayment, isLoading }: StudentTableProps) {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
@@ -132,14 +132,6 @@ export function StudentTable({ students, grades, classes, onEdit, onDelete, onVi
                         <motion.button
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.95 }}
-                          onClick={() => onView(student)}
-                          className="text-blue-600 hover:text-blue-900 p-1 rounded"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.95 }}
                           onClick={() => handleEditDetails(student)}
                           className="text-indigo-600 hover:text-indigo-900 p-1 rounded"
                           title="Edit Details"
@@ -154,6 +146,15 @@ export function StudentTable({ students, grades, classes, onEdit, onDelete, onVi
                           title="Edit Payment"
                         >
                           <CreditCard className="h-4 w-4" />
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => onSimplePayment(student)}
+                          className="text-purple-600 hover:text-purple-900 p-1 rounded"
+                          title="Quick Pay"
+                        >
+                          <DollarSign className="h-4 w-4" />
                         </motion.button>
                         <motion.button
                           whileHover={{ scale: 1.1 }}
@@ -217,14 +218,6 @@ export function StudentTable({ students, grades, classes, onEdit, onDelete, onVi
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => onView(student)}
-                  className="px-3 py-1 text-sm text-blue-600 hover:text-blue-900 border border-blue-200 rounded"
-                >
-                  View
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
                   onClick={() => handleEditDetails(student)}
                   className="px-3 py-1 text-sm text-indigo-600 hover:text-indigo-900 border border-indigo-200 rounded"
                 >
@@ -275,10 +268,12 @@ export function StudentTable({ students, grades, classes, onEdit, onDelete, onVi
       />
       
       <PaymentModal
+        key={`${selectedStudent?.id}-${(selectedStudent as any)?.payment_records?.length || 0}`}
         student={selectedStudent}
         isOpen={isPaymentModalOpen}
         onClose={handleCloseModals}
         onUpdatePayment={onUpdatePayment}
+        onDeletePayment={onDeletePayment}
       />
     </div>
   )

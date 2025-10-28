@@ -236,6 +236,9 @@ export function ImportModal({ isOpen, onClose, onImportComplete }: ImportModalPr
                             <li>• Make sure to use the exact grade and class names from the reference sheets</li>
                             <li>• TM Number and IC Number must be unique</li>
                             <li>• All required fields must be filled</li>
+                            <li>• Payment dates should be in YYYY-MM-DD format (optional)</li>
+                            <li>• Month 0 (Renewal) = renewal payment, Month 1-12 = monthly payments</li>
+                            <li>• Empty month columns mean no payment made for that month</li>
                             <li>• Only .xlsx and .xls files are supported</li>
                           </ul>
                         </div>

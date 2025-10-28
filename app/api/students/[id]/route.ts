@@ -26,8 +26,7 @@ export async function GET(
           id,
           year,
           month,
-          payment_date,
-          renewal_payment
+          payment_date
         )
       `)
       .eq('id', id)

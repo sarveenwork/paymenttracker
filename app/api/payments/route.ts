@@ -6,77 +6,11 @@ export async function POST(request: NextRequest) {
     const supabase = createClient()
     const body = await request.json()
 
-    const { student_id, year, month, payment_date, renewal_payment } = body
+    const { student_id, year, month, payment_date } = body
 
-    if (!student_id || !year) {
+    if (!student_id || !year || month === undefined) {
       return NextResponse.json(
-        { error: 'Student ID and year are required' },
-        { status: 400 }
-      )
-    }
-
-    // Handle renewal payment (only needs year, not month)
-    if (renewal_payment && !month) {
-      // Find any existing payment record for this year to update renewal
-      const { data: existingPayments } = await supabase
-        .from('payment_records')
-        .select('*')
-        .eq('student_id', student_id)
-        .eq('year', parseInt(year))
-        .limit(1)
-
-      if (existingPayments && existingPayments.length > 0) {
-        // Update existing record with renewal payment
-        const { data: payment, error } = await supabase
-          .from('payment_records')
-          .update({
-            renewal_payment: renewal_payment
-          })
-          .eq('id', existingPayments[0].id)
-          .select()
-          .single()
-
-        if (error) {
-          console.error('Error updating renewal payment:', error)
-          return NextResponse.json(
-            { error: 'Failed to update renewal payment' },
-            { status: 500 }
-          )
-        }
-
-        return NextResponse.json({ payment }, { status: 200 })
-      } else {
-        // Create new record for renewal payment (using month 1 as placeholder)
-        const paymentData = {
-          student_id,
-          year: parseInt(year),
-          month: 1,
-          payment_date: null,
-          renewal_payment: renewal_payment
-        }
-
-        const { data: payment, error } = await supabase
-          .from('payment_records')
-          .insert(paymentData)
-          .select()
-          .single()
-
-        if (error) {
-          console.error('Error creating renewal payment:', error)
-          return NextResponse.json(
-            { error: 'Failed to create renewal payment' },
-            { status: 500 }
-          )
-        }
-
-        return NextResponse.json({ payment }, { status: 201 })
-      }
-    }
-
-    // Handle monthly payment
-    if (!month) {
-      return NextResponse.json(
-        { error: 'Month is required for monthly payments' },
+        { error: 'Student ID, year, and month are required' },
         { status: 400 }
       )
     }
@@ -84,9 +18,8 @@ export async function POST(request: NextRequest) {
     const paymentData = {
       student_id,
       year: parseInt(year),
-      month: parseInt(month),
-      payment_date: payment_date || null,
-      renewal_payment: null
+      month: parseInt(month), // 0 for renewal, 1-12 for monthly payments
+      payment_date: payment_date || null
     }
 
     const { data: payment, error } = await supabase
@@ -122,7 +55,7 @@ export async function PUT(request: NextRequest) {
     const supabase = createClient()
     const body = await request.json()
 
-    const { id, payment_date, renewal_payment } = body
+    const { id, payment_date } = body
 
     if (!id) {
       return NextResponse.json(
@@ -134,8 +67,7 @@ export async function PUT(request: NextRequest) {
     const { data: payment, error } = await supabase
       .from('payment_records')
       .update({
-        payment_date: payment_date || null,
-        renewal_payment: renewal_payment || null
+        payment_date: payment_date || null
       })
       .eq('id', id)
       .select()
@@ -153,6 +85,43 @@ export async function PUT(request: NextRequest) {
 
   } catch (error) {
     console.error('Payments PUT API error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = createClient()
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Payment ID is required' },
+        { status: 400 }
+      )
+    }
+
+    const { error } = await supabase
+      .from('payment_records')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error deleting payment:', error)
+      return NextResponse.json(
+        { error: 'Failed to delete payment' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({ message: 'Payment deleted successfully' })
+
+  } catch (error) {
+    console.error('Payments DELETE API error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
