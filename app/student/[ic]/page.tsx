@@ -260,14 +260,14 @@ export default function StudentDetailPage() {
                         <h4 className="text-lg font-medium text-gray-900">{year}</h4>
                         <div className="flex items-center space-x-3">
                           <span className="text-sm text-gray-500">
-                            {paymentsByYear[year].filter(p => p.payment_date).length} / 12 months paid
+                            {paymentsByYear[year].filter(p => p.payment_date && p.month >= 1 && p.month <= 12).length} / 12 months paid
                           </span>
                           <div className={`text-sm font-medium px-2 py-1 rounded ${
-                            paymentsByYear[year].filter(p => p.payment_date).length === 12
+                            paymentsByYear[year].filter(p => p.payment_date && p.month >= 1 && p.month <= 12).length === 12
                               ? 'bg-green-100 text-green-800'
                               : 'bg-yellow-100 text-yellow-800'
                           }`}>
-                            {Math.round((paymentsByYear[year].filter(p => p.payment_date).length / 12) * 100)}% Complete
+                            {Math.round((paymentsByYear[year].filter(p => p.payment_date && p.month >= 1 && p.month <= 12).length / 12) * 100)}% Complete
                           </div>
                         </div>
                       </div>
