@@ -108,11 +108,14 @@ export function StudentEditModal({
       return
     }
     
+    setIsLoading(true)
     try {
       await onDeletePayment(paymentId)
       toast.success('Payment deleted successfully')
     } catch (error) {
       toast.error('Failed to delete payment')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -315,10 +318,20 @@ export function StudentEditModal({
                                       whileHover={{ scale: 1.05 }}
                                       whileTap={{ scale: 0.95 }}
                                       onClick={() => handleDeletePayment(payment.id, getMonthName(month))}
-                                      className="px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 rounded transition-colors flex items-center space-x-1 mx-auto"
+                                      disabled={isLoading}
+                                      className="px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 rounded transition-colors flex items-center space-x-1 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                      <Trash2 className="h-3 w-3" />
-                                      <span>Delete</span>
+                                      {isLoading ? (
+                                        <>
+                                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
+                                          <span>Deleting...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Trash2 className="h-3 w-3" />
+                                          <span>Delete</span>
+                                        </>
+                                      )}
                                     </motion.button>
                                   </div>
                                 ) : (
@@ -330,7 +343,8 @@ export function StudentEditModal({
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
                                   onClick={() => markPaidToday(month)}
-                                  className="mt-2 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                  disabled={isLoading}
+                                  className="mt-2 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   Mark Paid Today
                                 </motion.button>
@@ -366,17 +380,28 @@ export function StudentEditModal({
                             handlePaymentUpdate(undefined, undefined, e.target.value)
                           }
                         }}
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isLoading}
+                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       {getRenewalPayment()?.payment_date && (
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={() => handleDeletePayment(getRenewalPayment()!.id, 'Renewal')}
-                          className="px-3 py-2 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 rounded transition-colors flex items-center space-x-1"
+                          disabled={isLoading}
+                          className="px-3 py-2 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 rounded transition-colors flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <Trash2 className="h-3 w-3" />
-                          <span>Delete</span>
+                          {isLoading ? (
+                            <>
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
+                              <span>Deleting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="h-3 w-3" />
+                              <span>Delete</span>
+                            </>
+                          )}
                         </motion.button>
                       )}
                     </div>

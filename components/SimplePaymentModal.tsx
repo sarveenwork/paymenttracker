@@ -154,7 +154,8 @@ export function SimplePaymentModal({
                   type="date"
                   value={renewalPayment?.payment_date || ''}
                   onChange={(e) => updateRenewalPayment(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
               {renewalPayment?.payment_date && (
@@ -167,10 +168,20 @@ export function SimplePaymentModal({
                       e.stopPropagation()
                       handleDeletePayment(renewalPayment.id, 'Renewal')
                     }}
-                    className="px-3 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 rounded transition-colors flex items-center space-x-1"
+                    disabled={isLoading}
+                    className="px-3 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 rounded transition-colors flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Trash2 className="h-3 w-3" />
-                    <span>Delete</span>
+                    {isLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
+                        <span>Deleting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="h-3 w-3" />
+                        <span>Delete</span>
+                      </>
+                    )}
                   </button>
                 </div>
               )}
@@ -192,12 +203,16 @@ export function SimplePaymentModal({
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: i * 0.05 }}
-                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                    className={`p-4 border rounded-lg transition-all ${
+                      isLoading 
+                        ? 'cursor-not-allowed opacity-50' 
+                        : 'cursor-pointer'
+                    } ${
                       isPaid 
                         ? 'border-green-200 bg-green-50 hover:bg-green-100' 
                         : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
                     }`}
-                    onClick={() => togglePayment(month)}
+                    onClick={() => !isLoading && togglePayment(month)}
                   >
                     <div className="text-center">
                       <h4 className="font-medium text-gray-900 mb-2">{getMonthName(month)}</h4>
@@ -220,10 +235,20 @@ export function SimplePaymentModal({
                                 e.stopPropagation()
                                 handleDeletePayment(payment.id, getMonthName(month))
                               }}
-                              className="mt-1 px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 rounded transition-colors flex items-center space-x-1"
+                              disabled={isLoading}
+                              className="mt-1 px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 rounded transition-colors flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <Trash2 className="h-3 w-3" />
-                              <span>Delete</span>
+                              {isLoading ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
+                                  <span>Deleting...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Trash2 className="h-3 w-3" />
+                                  <span>Delete</span>
+                                </>
+                              )}
                             </button>
                           </div>
                         ) : (

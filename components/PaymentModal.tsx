@@ -23,6 +23,7 @@ export function PaymentModal({
   onDeletePayment
 }: PaymentModalProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString())
   const [renewalPaymentDate, setRenewalPaymentDate] = useState('')
   const [monthlyPaymentDates, setMonthlyPaymentDates] = useState<{ [month: number]: string }>({})
@@ -91,11 +92,14 @@ export function PaymentModal({
       return
     }
     
+    setIsDeleting(true)
     try {
       await onDeletePayment(paymentId)
       toast.success('Payment deleted successfully')
     } catch (error) {
       toast.error('Failed to delete payment')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -147,7 +151,8 @@ export function PaymentModal({
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isLoading || isDeleting}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {Array.from({ length: 5 }, (_, i) => {
                 const year = new Date().getFullYear() - 2 + i
@@ -182,13 +187,14 @@ export function PaymentModal({
                     type="date"
                     value={getRenewalPaymentDate()}
                     onChange={(e) => setRenewalPaymentDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    disabled={isLoading || isDeleting}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
                 
                 <button
                   onClick={onSubmitRenewal}
-                  disabled={isLoading}
+                  disabled={isLoading || isDeleting}
                   className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
                   {isLoading ? (
@@ -212,10 +218,20 @@ export function PaymentModal({
                         handleDeletePayment(renewalPayment.id, 'Renewal')
                       }
                     }}
-                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center space-x-2"
+                    disabled={isLoading || isDeleting}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                   >
-                    <Trash2 className="h-4 w-4" />
-                    <span>Delete Renewal Payment</span>
+                    {isDeleting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Deleting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="h-4 w-4" />
+                        <span>Delete Renewal Payment</span>
+                      </>
+                    )}
                   </button>
                 )}
               </div>
@@ -258,13 +274,14 @@ export function PaymentModal({
                             ...prev,
                             [month]: e.target.value
                           }))}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          disabled={isLoading || isDeleting}
+                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                       </div>
 
                       <button
                         onClick={() => updateMonthlyPayment(month, monthlyPaymentDates[month] || getMonthlyPaymentDate(month))}
-                        disabled={isLoading || !(monthlyPaymentDates[month] || getMonthlyPaymentDate(month))}
+                        disabled={isLoading || isDeleting || !(monthlyPaymentDates[month] || getMonthlyPaymentDate(month))}
                         className="w-full px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isLoading ? 'Saving...' : 'Update'}
@@ -273,10 +290,20 @@ export function PaymentModal({
                       {existingPayment?.payment_date && (
                         <button
                           onClick={() => handleDeletePayment(existingPayment.id, getMonthName(month))}
-                          className="w-full px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 flex items-center justify-center space-x-1"
+                          disabled={isLoading || isDeleting}
+                          className="w-full px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-1"
                         >
-                          <Trash2 className="h-3 w-3" />
-                          <span>Delete</span>
+                          {isDeleting ? (
+                            <>
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                              <span>Deleting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="h-3 w-3" />
+                              <span>Delete</span>
+                            </>
+                          )}
                         </button>
                       )}
                     </div>
