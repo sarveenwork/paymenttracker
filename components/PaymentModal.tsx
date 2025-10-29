@@ -24,34 +24,28 @@ export function PaymentModal({
 }: PaymentModalProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString())
-  const [payments, setPayments] = useState<PaymentRecord[]>([])
   const [renewalPaymentDate, setRenewalPaymentDate] = useState('')
   const [monthlyPaymentDates, setMonthlyPaymentDates] = useState<{ [month: number]: string }>({})
 
-  useEffect(() => {
-    if (student && isOpen) {
-      // Load existing payments for the selected year
-      const studentWithPayments = student as StudentWithPayments
-      const yearPayments = studentWithPayments.payment_records?.filter(
-        (payment) => payment.year === parseInt(selectedYear)
-      ) || []
-      setPayments(yearPayments)
-      
-      // Load renewal payment date for the year (month 0)
-      const renewalPayment = yearPayments.find(p => p.month === 0)
-      setRenewalPaymentDate(renewalPayment?.payment_date || '')
-      
-      // Initialize monthly payment dates
-      const monthlyDates: { [month: number]: string } = {}
-      yearPayments.forEach(payment => {
-        if (payment.payment_date) {
-          monthlyDates[payment.month] = payment.payment_date
-        }
-      })
-      setMonthlyPaymentDates(monthlyDates)
-    }
-  }, [student, isOpen, selectedYear])
+  const getExistingPayment = (month: number) => {
+    const studentWithPayments = student as StudentWithPayments
+    return studentWithPayments?.payment_records?.find(p => p.year === parseInt(selectedYear) && p.month === month)
+  }
 
+  const getRenewalPayment = () => {
+    const studentWithPayments = student as StudentWithPayments
+    return studentWithPayments?.payment_records?.find(p => p.year === parseInt(selectedYear) && p.month === 0)
+  }
+
+  const getMonthlyPaymentDate = (month: number) => {
+    const payment = getExistingPayment(month)
+    return payment?.payment_date || ''
+  }
+
+  const getRenewalPaymentDate = () => {
+    const payment = getRenewalPayment()
+    return payment?.payment_date || ''
+  }
 
   const onSubmitRenewal = async () => {
     if (!student) return
@@ -90,10 +84,6 @@ export function PaymentModal({
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const getExistingPayment = (month: number) => {
-    return payments.find(p => p.month === month)
   }
 
   const handleDeletePayment = async (paymentId: string, monthName: string) => {
@@ -190,7 +180,7 @@ export function PaymentModal({
                   </label>
                   <input
                     type="date"
-                    value={renewalPaymentDate}
+                    value={getRenewalPaymentDate()}
                     onChange={(e) => setRenewalPaymentDate(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
@@ -214,10 +204,10 @@ export function PaymentModal({
                   )}
                 </button>
                 
-                {renewalPaymentDate && (
+                {getRenewalPaymentDate() && (
                   <button
                     onClick={() => {
-                      const renewalPayment = payments.find(p => p.month === 0)
+                      const renewalPayment = getRenewalPayment()
                       if (renewalPayment) {
                         handleDeletePayment(renewalPayment.id, 'Renewal')
                       }
@@ -263,7 +253,7 @@ export function PaymentModal({
                         </label>
                         <input
                           type="date"
-                          value={monthlyPaymentDates[month] || ''}
+                          value={monthlyPaymentDates[month] || getMonthlyPaymentDate(month)}
                           onChange={(e) => setMonthlyPaymentDates(prev => ({
                             ...prev,
                             [month]: e.target.value
@@ -273,8 +263,8 @@ export function PaymentModal({
                       </div>
 
                       <button
-                        onClick={() => updateMonthlyPayment(month, monthlyPaymentDates[month] || '')}
-                        disabled={isLoading || !monthlyPaymentDates[month]}
+                        onClick={() => updateMonthlyPayment(month, monthlyPaymentDates[month] || getMonthlyPaymentDate(month))}
+                        disabled={isLoading || !(monthlyPaymentDates[month] || getMonthlyPaymentDate(month))}
                         className="w-full px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isLoading ? 'Saving...' : 'Update'}
@@ -307,13 +297,13 @@ export function PaymentModal({
               <div>
                 <span className="text-gray-600">Paid Months:</span>
                 <span className="ml-2 font-medium text-green-600">
-                  {payments.filter(p => p.month >= 1 && p.month <= 12 && p.payment_date).length}
+                  {Array.from({ length: 12 }, (_, i) => i + 1).filter(month => getMonthlyPaymentDate(month)).length}
                 </span>
               </div>
               <div>
                 <span className="text-gray-600">Renewal Payment:</span>
                 <span className="ml-2 font-medium text-purple-600">
-                  {renewalPaymentDate ? 'Paid' : 'Not Paid'}
+                  {getRenewalPaymentDate() ? 'Paid' : 'Not Paid'}
                 </span>
               </div>
             </div>

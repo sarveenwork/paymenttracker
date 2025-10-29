@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Student, Grade, Class } from '@/lib/types'
 import { GradeBadge } from './GradeBadge'
@@ -26,6 +26,16 @@ export function StudentTable({ students, grades, classes, onEdit, onDelete, onUp
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
+
+  // Update selectedStudent when students array changes (e.g., after payment updates)
+  useEffect(() => {
+    if (selectedStudent) {
+      const updatedStudent = students.find(s => s.id === selectedStudent.id)
+      if (updatedStudent) {
+        setSelectedStudent(updatedStudent)
+      }
+    }
+  }, [students])
 
   const handleEditDetails = (student: Student) => {
     setSelectedStudent(student)
@@ -268,7 +278,6 @@ export function StudentTable({ students, grades, classes, onEdit, onDelete, onUp
       />
       
       <PaymentModal
-        key={`${selectedStudent?.id}-${(selectedStudent as any)?.payment_records?.length || 0}`}
         student={selectedStudent}
         isOpen={isPaymentModalOpen}
         onClose={handleCloseModals}

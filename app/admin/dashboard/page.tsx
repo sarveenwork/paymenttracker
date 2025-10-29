@@ -531,7 +531,6 @@ export default function AdminDashboard() {
       />
 
       <StudentEditModal
-        key={`edit-${selectedStudent?.id}-${(selectedStudent as any)?.payment_records?.length || 0}`}
         student={selectedStudent}
         grades={grades}
         classes={classes}
@@ -546,7 +545,6 @@ export default function AdminDashboard() {
       />
 
       <SimplePaymentModal
-        key={`simple-${selectedStudent?.id}-${(selectedStudent as any)?.payment_records?.length || 0}`}
         student={selectedStudent}
         isOpen={isSimplePaymentModalOpen}
         onClose={() => {
