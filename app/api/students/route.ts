@@ -81,11 +81,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Convert to uppercase
+    const uppercaseName = name.toString().trim().toUpperCase()
+    const uppercaseTM = tm_number.toString().trim().toUpperCase()
+    const uppercaseIC = ic_number.toString().trim().toUpperCase()
+    const uppercaseRemarks = remarks ? remarks.toString().trim().toUpperCase() : null
+
     // Check if there's already an active student with this tm_number
     const { data: existingStudentByTM } = await supabase
       .from('students')
       .select('id, tm_number, is_active')
-      .eq('tm_number', tm_number)
+      .eq('tm_number', uppercaseTM)
       .eq('is_active', true)
       .single()
 
@@ -100,7 +106,7 @@ export async function POST(request: NextRequest) {
     const { data: existingStudentByIC } = await supabase
       .from('students')
       .select('id, ic_number, is_active')
-      .eq('ic_number', ic_number)
+      .eq('ic_number', uppercaseIC)
       .eq('is_active', true)
       .single()
 
@@ -113,12 +119,12 @@ export async function POST(request: NextRequest) {
 
     const studentData = {
       student_id: generateStudentId(),
-      tm_number,
-      ic_number,
-      name,
+      tm_number: uppercaseTM,
+      ic_number: uppercaseIC,
+      name: uppercaseName,
       current_grade_id: parseInt(current_grade_id),
       class_id: parseInt(class_id),
-      remarks: remarks || null,
+      remarks: uppercaseRemarks,
       is_active: true
     }
 

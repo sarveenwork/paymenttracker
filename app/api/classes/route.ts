@@ -52,11 +52,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Convert to uppercase
+    const uppercaseClassName = class_name.trim().toUpperCase()
+
     // Check if class already exists
     const { data: existingClass } = await supabase
       .from('classes')
       .select('id')
-      .eq('class_name', class_name.trim())
+      .eq('class_name', uppercaseClassName)
       .single()
 
     if (existingClass) {
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     const { data: newClass, error } = await supabase
       .from('classes')
-      .insert({ class_name: class_name.trim() })
+      .insert({ class_name: uppercaseClassName })
       .select()
       .single()
 

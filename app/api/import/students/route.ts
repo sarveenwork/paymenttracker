@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import { generateStudentId } from '@/lib/utils'
+import { generateStudentId, normalizeDate } from '@/lib/utils'
 import * as XLSX from 'xlsx'
 
 export async function POST(request: NextRequest) {
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const buffer = await file.arrayBuffer()
     const workbook = XLSX.read(buffer, { type: 'buffer' })
     const worksheet = workbook.Sheets[workbook.SheetNames[0]]
-    const data = XLSX.utils.sheet_to_json(worksheet)
+    const data = XLSX.utils.sheet_to_json(worksheet, { raw: true })
 
     if (!data || data.length === 0) {
       return NextResponse.json(
@@ -57,31 +57,36 @@ export async function POST(request: NextRequest) {
     }
 
     const studentsToInsert = []
+    
+    // Track duplicate TM/IC numbers within the Excel file
+    const seenTMNumbers = new Map<string, number>() // TM Number -> first occurrence row
+    const seenICNumbers = new Map<string, number>() // IC Number -> first occurrence row
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i] as any
       const rowNumber = i + 2 // Excel row number (accounting for header)
 
       try {
-        // Validate required fields
-        const name = row['Student Name']?.toString().trim()
-        const tmNumber = row['TM Number']?.toString().trim()
-        const icNumber = row['IC Number']?.toString().trim()
+        // Validate required fields and convert to uppercase
+        const name = row['Student Name']?.toString().trim().toUpperCase()
+        const tmNumber = row['TM Number']?.toString().trim().toUpperCase()
+        const icNumber = row['IC Number']?.toString().trim().toUpperCase()
         const gradeName = row['Grade']?.toString().trim()
-        const className = row['Class']?.toString().trim()
-        const remarks = row['Remarks']?.toString().trim()
+        const className = row['Class']?.toString().trim().toUpperCase()
+        const remarks = row['Remarks']?.toString().trim().toUpperCase()
 
         // Extract payment dates for months 0-12
-        const paymentDates: { [month: number]: Date | null } = {}
+        const paymentDates: { [month: number]: string | null } = {}
         for (let month = 0; month <= 12; month++) {
           const columnName = month === 0 ? 'Month 0 (Renewal)' : `Month ${month}`
-          const dateValue = row[columnName]?.toString().trim()
-          if (dateValue) {
-            const parsedDate = new Date(dateValue)
-            if (!isNaN(parsedDate.getTime())) {
-              paymentDates[month] = parsedDate
+          const dateValue = row[columnName]
+          if (dateValue !== undefined && dateValue !== null && dateValue !== '') {
+            // Normalize the date to ISO format (handles both Excel serial numbers and string dates)
+            const normalizedDate = normalizeDate(dateValue)
+            if (normalizedDate) {
+              paymentDates[month] = normalizedDate
             } else {
-              results.errors.push(`Row ${rowNumber}: Invalid date format in ${columnName}: "${dateValue}". Use YYYY-MM-DD format`)
+              results.errors.push(`Row ${rowNumber}: Invalid date format in ${columnName}: "${dateValue}"`)
               continue
             }
           }
@@ -91,6 +96,25 @@ export async function POST(request: NextRequest) {
           results.errors.push(`Row ${rowNumber}: Missing required fields`)
           continue
         }
+
+        // Check for duplicates within the Excel file
+        const firstTMOccurrence = seenTMNumbers.get(tmNumber)
+        if (firstTMOccurrence !== undefined) {
+          results.skipped++
+          results.errors.push(`Row ${rowNumber}: TM Number "${tmNumber}" is duplicate (first seen at row ${firstTMOccurrence}). Skipped.`)
+          continue
+        }
+        
+        const firstICOccurrence = seenICNumbers.get(icNumber)
+        if (firstICOccurrence !== undefined) {
+          results.skipped++
+          results.errors.push(`Row ${rowNumber}: IC Number "${icNumber}" is duplicate (first seen at row ${firstICOccurrence}). Skipped.`)
+          continue
+        }
+
+        // Mark as seen after validation
+        seenTMNumbers.set(tmNumber, rowNumber)
+        seenICNumbers.set(icNumber, rowNumber)
 
         // Validate grade
         const gradeId = gradeMap.get(gradeName.toLowerCase()) || gradeMapWithoutGrade.get(gradeName.toLowerCase())
@@ -106,8 +130,7 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-
-        // Check for duplicates
+        // Check for duplicates in database
         const { data: existingStudentByTM } = await supabase
           .from('students')
           .select('id')
@@ -116,7 +139,8 @@ export async function POST(request: NextRequest) {
           .single()
 
         if (existingStudentByTM) {
-          results.errors.push(`Row ${rowNumber}: TM Number "${tmNumber}" already exists`)
+          results.skipped++
+          results.errors.push(`Row ${rowNumber}: TM Number "${tmNumber}" already exists in database. Skipped.`)
           continue
         }
 
@@ -128,11 +152,12 @@ export async function POST(request: NextRequest) {
           .single()
 
         if (existingStudentByIC) {
-          results.errors.push(`Row ${rowNumber}: IC Number "${icNumber}" already exists`)
+          results.skipped++
+          results.errors.push(`Row ${rowNumber}: IC Number "${icNumber}" already exists in database. Skipped.`)
           continue
         }
 
-        // Prepare student data
+        // Prepare student data (already uppercase from extraction)
         const studentData = {
           student_id: generateStudentId(),
           tm_number: tmNumber,
@@ -215,7 +240,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      message: `Import completed. ${results.success} students imported successfully.`,
+      message: `Import completed. ${results.success} students imported successfully${results.skipped > 0 ? `, ${results.skipped} rows skipped` : ''}.`,
       results
     })
 

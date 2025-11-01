@@ -69,11 +69,17 @@ export async function PUT(
       )
     }
 
+    // Convert to uppercase
+    const uppercaseName = name.toString().trim().toUpperCase()
+    const uppercaseTM = tm_number.toString().trim().toUpperCase()
+    const uppercaseIC = ic_number.toString().trim().toUpperCase()
+    const uppercaseRemarks = remarks ? remarks.toString().trim().toUpperCase() : null
+
     // Check if there's already an active student with this tm_number (excluding current student)
     const { data: existingStudentByTM } = await supabase
       .from('students')
       .select('id, tm_number, is_active')
-      .eq('tm_number', tm_number)
+      .eq('tm_number', uppercaseTM)
       .eq('is_active', true)
       .neq('id', id)
       .single()
@@ -89,7 +95,7 @@ export async function PUT(
     const { data: existingStudentByIC } = await supabase
       .from('students')
       .select('id, ic_number, is_active')
-      .eq('ic_number', ic_number)
+      .eq('ic_number', uppercaseIC)
       .eq('is_active', true)
       .neq('id', id)
       .single()
@@ -104,12 +110,12 @@ export async function PUT(
     const { data: student, error } = await supabase
       .from('students')
       .update({
-        name,
-        tm_number,
-        ic_number,
+        name: uppercaseName,
+        tm_number: uppercaseTM,
+        ic_number: uppercaseIC,
         current_grade_id: parseInt(current_grade_id),
         class_id: parseInt(class_id),
-        remarks: remarks || null
+        remarks: uppercaseRemarks
       })
       .eq('id', id)
       .select(`

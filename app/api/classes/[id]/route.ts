@@ -19,11 +19,14 @@ export async function PUT(
       )
     }
 
+    // Convert to uppercase
+    const uppercaseClassName = class_name.trim().toUpperCase()
+
     // Check if class already exists (excluding current class)
     const { data: existingClass } = await supabase
       .from('classes')
       .select('id')
-      .eq('class_name', class_name.trim())
+      .eq('class_name', uppercaseClassName)
       .neq('id', id)
       .single()
 
@@ -36,7 +39,7 @@ export async function PUT(
 
     const { data: updatedClass, error } = await supabase
       .from('classes')
-      .update({ class_name: class_name.trim() })
+      .update({ class_name: uppercaseClassName })
       .eq('id', id)
       .select()
       .single()
